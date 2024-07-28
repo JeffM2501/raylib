@@ -493,6 +493,10 @@ void __stdcall Sleep(unsigned long msTimeout);              // Required for: Wai
 const char *TextFormat(const char *text, ...);              // Formatting of text with variables to 'embed'
 #endif // !SUPPORT_MODULE_RTEXT
 
+#if defined (SUPPORT_MODULE_RTEXTURES)
+extern void SetupDefaultImageLoaders();
+#endif // !SUPPORT_MODULE_RTEXTURES
+
 #if defined(PLATFORM_DESKTOP)
     #define PLATFORM_DESKTOP_GLFW
 #endif
@@ -640,6 +644,10 @@ void InitWindow(int width, int height, const char *title)
 
     // Setup default viewport
     SetupViewport(CORE.Window.currentFbo.width, CORE.Window.currentFbo.height);
+
+#if defined (SUPPORT_MODULE_RTEXTURES)
+    SetupDefaultImageLoaders();
+#endif
 
 #if defined(SUPPORT_MODULE_RTEXT) && defined(SUPPORT_DEFAULT_FONT)
     // Load default font

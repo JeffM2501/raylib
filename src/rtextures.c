@@ -266,14 +266,40 @@ static float HalfToFloat(unsigned short x);
 static unsigned short FloatToHalf(float x);
 static Vector4 *LoadImageDataNormalized(Image image);       // Load pixel data from image as Vector4 array (float normalized)
 
-//----------------------------------------------------------------------------------
-// Module Functions Definition
-//----------------------------------------------------------------------------------
+// image loader registry
+typedef bool (*ImageLoaderCallback)(unsigned char* bufferData, unsigned int size, Image* destinationImage);
 
-// Load image from file into CPU memory (RAM)
-Image LoadImage(const char *fileName)
+#define MAX_IMAGE_EXTENSION 7
+typedef struct ImageLoaderData
 {
-    Image image = { 0 };
+    ImageLoaderCallback Callback;
+    char Extension[MAX_IMAGE_EXTENSION+1];
+}ImageLoaderData;
+
+#define MAX_IMAGE_LOADERS 32
+ImageLoaderData ImageLoaders[MAX_IMAGE_LOADERS] = { 0 };
+unsigned int ImageLoaderCount = 0;
+
+bool StandardImagesLoaded = false;
+
+// TODO, add this to an advanced header as extern so that people can call it.
+void RegisterImageLoader(ImageLoaderCallback callback, const char* extension)
+{
+    if (ImageLoaderCount >= MAX_IMAGE_LOADERS)
+        return;
+
+    ImageLoaders[ImageLoaderCount].Callback = callback;
+
+    int len = strlen(extension);
+    if (len == 0)
+        return;
+
+    if (len >= MAX_IMAGE_EXTENSION)
+        len = MAX_IMAGE_EXTENSION;
+    strncpy(ImageLoaders[ImageLoaderCount].Extension, extension, len);
+
+    ImageLoaderCount++;
+}
 
 #if defined(SUPPORT_FILEFORMAT_PNG) || \
     defined(SUPPORT_FILEFORMAT_BMP) || \
@@ -285,9 +311,224 @@ Image LoadImage(const char *fileName)
     defined(SUPPORT_FILEFORMAT_PNM) || \
     defined(SUPPORT_FILEFORMAT_PSD)
 
-    #define STBI_REQUIRED
+// standard image loaders
+bool ImageLoaderSTB(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    if (fileData != NULL)
+    {
+        int comp = 0;
+        image->data = stbi_load_from_memory(fileData, dataSize, &image->width, &image->height, &comp, 0);
+
+        if (image->data != NULL)
+        {
+            image->mipmaps = 1;
+
+            if (comp == 1) image->format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+            else if (comp == 2) image->format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+            else if (comp == 3) image->format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
+            else if (comp == 4) image->format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+
+            return true;
+        }
+    }
+
+    return false;
+}
 #endif
 
+#if defined(SUPPORT_FILEFORMAT_HDR)
+bool ImageLoaderHDR(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    if (fileData != NULL)
+    {
+        int comp = 0;
+        image->data = stbi_loadf_from_memory(fileData, dataSize, &image->width, &image->height, &comp, 0);
+
+        image->mipmaps = 1;
+
+        if (comp == 1) image->format = PIXELFORMAT_UNCOMPRESSED_R32;
+        else if (comp == 3) image->format = PIXELFORMAT_UNCOMPRESSED_R32G32B32;
+        else if (comp == 4) image->format = PIXELFORMAT_UNCOMPRESSED_R32G32B32A32;
+        else
+        {
+            TRACELOG(LOG_WARNING, "IMAGE: HDR file format not supported");
+            UnloadImage(*image);
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_QOI)
+bool ImageLoaderQOI(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    if (fileData != NULL)
+    {
+        qoi_desc desc = { 0 };
+        image->data = qoi_decode(fileData, dataSize, &desc, 4);
+        image->width = desc.width;
+        image->height = desc.height;
+        image->format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+        image->mipmaps = 1;
+        return true;
+    }
+    return false;
+}
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_SVG)
+bool ImageLoaderSVG(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    // Validate fileData as valid SVG string data
+    //<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="2484" viewBox="0 0 192.756 191.488">
+    if ((fileData != NULL) &&
+        (fileData[0] == '<') &&
+        (fileData[1] == 's') &&
+        (fileData[2] == 'v') &&
+        (fileData[3] == 'g'))
+    {
+        struct NSVGimage* svgImage = nsvgParse(fileData, "px", 96.0f);
+        unsigned char* img = RL_MALLOC(svgImage->width * svgImage->height * 4);
+
+        // Rasterize
+        struct NSVGrasterizer* rast = nsvgCreateRasterizer();
+        nsvgRasterize(rast, svgImage, 0, 0, 1.0f, img, svgImage->width, svgImage->height, svgImage->width * 4);
+
+        // Populate image struct with all data
+        image->data = img;
+        image->width = svgImage->width;
+        image->height = svgImage->height;
+        image->mipmaps = 1;
+        image->format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+
+        nsvgDelete(svgImage);
+        nsvgDeleteRasterizer(rast);
+    }
+}
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_DDS)
+bool ImageLoaderDDS(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    image->data = rl_load_dds_from_memory(fileData, dataSize, &image->width, &image->height, &image->format, &image->mipmaps);
+    return image->data != NULL;
+}
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_PKM)
+bool ImageLoaderPKM(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    image->data = rl_load_pkm_from_memory(fileData, dataSize, &image->width, &image->height, &image->format, &image->mipmaps);
+    return image->data != NULL;
+}
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_KTX)
+bool ImageLoaderKTX(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    image->data = rl_load_ktx_from_memory(fileData, dataSize, &image->width, &image->height, &image->format, &image->mipmaps);
+    return image->data != NULL;
+}
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_PVR)
+bool ImageLoaderPVR(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    image->data = rl_load_pvr_from_memory(fileData, dataSize, &image->width, &image->height, &image->format, &image->mipmaps);
+    return image->data != NULL;
+}
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_ASTC)
+bool ImageLoaderASTC(unsigned char* fileData, unsigned int dataSize, Image* image)
+{
+    image->data = rl_load_astc_from_memory(fileData, dataSize, &image->width, &image->height, &image->format, &image->mipmaps);
+    return image->data != NULL;
+}
+#endif
+
+void SetupDefaultImageLoaders()
+{
+    if (StandardImagesLoaded > 0)
+        return;
+
+    StandardImagesLoaded = true;
+
+#if defined(SUPPORT_FILEFORMAT_PNG)
+    RegisterImageLoader(ImageLoaderSTB, ".png");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_BMP)
+    RegisterImageLoader(ImageLoaderSTB, ".bmp");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_TGA)
+    RegisterImageLoader(ImageLoaderSTB, ".tga");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_JPG)
+    RegisterImageLoader(ImageLoaderSTB, ".jpg");
+    RegisterImageLoader(ImageLoaderSTB, ".jpeg");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_GIF)
+    RegisterImageLoader(ImageLoaderSTB, ".gif");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_PSD)
+    RegisterImageLoader(ImageLoaderSTB, ".psd");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_PIC)
+    RegisterImageLoader(ImageLoaderSTB, ".pic");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_PNM)
+    RegisterImageLoader(ImageLoaderSTB, ".ppm");
+    RegisterImageLoader(ImageLoaderSTB, ".pgm");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_HDR)
+    RegisterImageLoader(ImageLoaderHDR, ".hdr");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_QOI)
+    RegisterImageLoader(ImageLoaderQOI, ".qoi");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_SVG)
+    RegisterImageLoader(ImageLoaderSVG, ".svg");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_DDS)
+    RegisterImageLoader(ImageLoaderDDS, ".dds");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_PKM) 
+    RegisterImageLoader(ImageLoaderPKM, ".pkm");
+#endif
+
+#if defined(SUPPORT_FILEFORMAT_KTX)
+    RegisterImageLoader(ImageLoaderKTX, ".ktx");
+#endif
+#if defined(SUPPORT_FILEFORMAT_PVR)
+    RegisterImageLoader(ImageLoaderPVR, ".pvr");
+#endif
+#if defined(SUPPORT_FILEFORMAT_ASTC)
+    RegisterImageLoader(ImageLoaderASTC, ".astc");
+#endif
+}
+
+//----------------------------------------------------------------------------------
+// Module Functions Definition
+//----------------------------------------------------------------------------------
+
+// Load image from file into CPU memory (RAM)
+Image LoadImage(const char *fileName)
+{
+    Image image = { 0 };
     // Loading file to memory
     int dataSize = 0;
     unsigned char *fileData = LoadFileData(fileName, &dataSize);
@@ -514,157 +755,26 @@ Image LoadImageFromMemory(const char *fileType, const unsigned char *fileData, i
         return image;
     }
 
-    if ((false)
-#if defined(SUPPORT_FILEFORMAT_PNG)
-        || (strcmp(fileType, ".png") == 0) || (strcmp(fileType, ".PNG") == 0)
-#endif
-#if defined(SUPPORT_FILEFORMAT_BMP)
-        || (strcmp(fileType, ".bmp") == 0) || (strcmp(fileType, ".BMP") == 0)
-#endif
-#if defined(SUPPORT_FILEFORMAT_TGA)
-        || (strcmp(fileType, ".tga") == 0) || (strcmp(fileType, ".TGA") == 0)
-#endif
-#if defined(SUPPORT_FILEFORMAT_JPG)
-        || (strcmp(fileType, ".jpg") == 0) || (strcmp(fileType, ".jpeg") == 0)
-        || (strcmp(fileType, ".JPG") == 0) || (strcmp(fileType, ".JPEG") == 0)
-#endif
-#if defined(SUPPORT_FILEFORMAT_GIF)
-        || (strcmp(fileType, ".gif") == 0) || (strcmp(fileType, ".GIF") == 0)
-#endif
-#if defined(SUPPORT_FILEFORMAT_PIC)
-        || (strcmp(fileType, ".pic") == 0) || (strcmp(fileType, ".PIC") == 0)
-#endif
-#if defined(SUPPORT_FILEFORMAT_PNM)
-        || (strcmp(fileType, ".ppm") == 0) || (strcmp(fileType, ".pgm") == 0)
-        || (strcmp(fileType, ".PPM") == 0) || (strcmp(fileType, ".PGM") == 0)
-#endif
-#if defined(SUPPORT_FILEFORMAT_PSD)
-        || (strcmp(fileType, ".psd") == 0) || (strcmp(fileType, ".PSD") == 0)
-#endif
-        )
+    for (unsigned int i = 0; i < ImageLoaderCount; i++)
     {
-#if defined(STBI_REQUIRED)
-        // NOTE: Using stb_image to load images (Supports multiple image formats)
-
-        if (fileData != NULL)
+        if (strcmpi(ImageLoaders[i].Extension, fileType) == 0)
         {
-            int comp = 0;
-            image.data = stbi_load_from_memory(fileData, dataSize, &image.width, &image.height, &comp, 0);
-
-            if (image.data != NULL)
+            if (ImageLoaders[i].Callback(fileData, dataSize, &image))
             {
-                image.mipmaps = 1;
-
-                if (comp == 1) image.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
-                else if (comp == 2) image.format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
-                else if (comp == 3) image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8;
-                else if (comp == 4) image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+                TRACELOG(LOG_INFO, "IMAGE: Data loaded successfully (%ix%i | %s | %i mipmaps)", image.width, image.height, rlGetPixelFormatName(image.format), image.mipmaps);
+                return image;
             }
-        }
-#endif
-    }
-#if defined(SUPPORT_FILEFORMAT_HDR)
-    else if ((strcmp(fileType, ".hdr") == 0) || (strcmp(fileType, ".HDR") == 0))
-    {
-#if defined(STBI_REQUIRED)
-        if (fileData != NULL)
-        {
-            int comp = 0;
-            image.data = stbi_loadf_from_memory(fileData, dataSize, &image.width, &image.height, &comp, 0);
 
-            image.mipmaps = 1;
+            if (image.data)
+                MemFree(image.data);
+            image.data = NULL;
 
-            if (comp == 1) image.format = PIXELFORMAT_UNCOMPRESSED_R32;
-            else if (comp == 3) image.format = PIXELFORMAT_UNCOMPRESSED_R32G32B32;
-            else if (comp == 4) image.format = PIXELFORMAT_UNCOMPRESSED_R32G32B32A32;
-            else
-            {
-                TRACELOG(LOG_WARNING, "IMAGE: HDR file format not supported");
-                UnloadImage(image);
-            }
-        }
-#endif
-    }
-#endif
-#if defined(SUPPORT_FILEFORMAT_QOI)
-    else if ((strcmp(fileType, ".qoi") == 0) || (strcmp(fileType, ".QOI") == 0))
-    {
-        if (fileData != NULL)
-        {
-            qoi_desc desc = { 0 };
-            image.data = qoi_decode(fileData, dataSize, &desc, 4);
-            image.width = desc.width;
-            image.height = desc.height;
-            image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-            image.mipmaps = 1;
+            TRACELOG(LOG_WARNING, "IMAGE: Failed to load image data");
+            return image;
         }
     }
-#endif
-#if defined(SUPPORT_FILEFORMAT_SVG)
-    else if ((strcmp(fileType, ".svg") == 0) || (strcmp(fileType, ".SVG") == 0))
-    {
-        // Validate fileData as valid SVG string data
-        //<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="2484" viewBox="0 0 192.756 191.488">
-        if ((fileData != NULL) &&
-            (fileData[0] == '<') &&
-            (fileData[1] == 's') &&
-            (fileData[2] == 'v') &&
-            (fileData[3] == 'g'))
-        {
-            struct NSVGimage *svgImage = nsvgParse(fileData, "px", 96.0f);
-            unsigned char *img = RL_MALLOC(svgImage->width*svgImage->height*4);
 
-            // Rasterize
-            struct NSVGrasterizer *rast = nsvgCreateRasterizer();
-            nsvgRasterize(rast, svgImage, 0, 0, 1.0f, img, svgImage->width, svgImage->height, svgImage->width*4);
-
-            // Populate image struct with all data
-            image.data = img;
-            image.width = svgImage->width;
-            image.height = svgImage->height;
-            image.mipmaps = 1;
-            image.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-
-            nsvgDelete(svgImage);
-            nsvgDeleteRasterizer(rast);
-        }
-    }
-#endif
-#if defined(SUPPORT_FILEFORMAT_DDS)
-    else if ((strcmp(fileType, ".dds") == 0) || (strcmp(fileType, ".DDS") == 0))
-    {
-        image.data = rl_load_dds_from_memory(fileData, dataSize, &image.width, &image.height, &image.format, &image.mipmaps);
-    }
-#endif
-#if defined(SUPPORT_FILEFORMAT_PKM)
-    else if ((strcmp(fileType, ".pkm") == 0) || (strcmp(fileType, ".PKM") == 0))
-    {
-        image.data = rl_load_pkm_from_memory(fileData, dataSize, &image.width, &image.height, &image.format, &image.mipmaps);
-    }
-#endif
-#if defined(SUPPORT_FILEFORMAT_KTX)
-    else if ((strcmp(fileType, ".ktx") == 0) || (strcmp(fileType, ".KTX") == 0))
-    {
-        image.data = rl_load_ktx_from_memory(fileData, dataSize, &image.width, &image.height, &image.format, &image.mipmaps);
-    }
-#endif
-#if defined(SUPPORT_FILEFORMAT_PVR)
-    else if ((strcmp(fileType, ".pvr") == 0) || (strcmp(fileType, ".PVR") == 0))
-    {
-        image.data = rl_load_pvr_from_memory(fileData, dataSize, &image.width, &image.height, &image.format, &image.mipmaps);
-    }
-#endif
-#if defined(SUPPORT_FILEFORMAT_ASTC)
-    else if ((strcmp(fileType, ".astc") == 0) || (strcmp(fileType, ".ASTC") == 0))
-    {
-        image.data = rl_load_astc_from_memory(fileData, dataSize, &image.width, &image.height, &image.format, &image.mipmaps);
-    }
-#endif
-    else TRACELOG(LOG_WARNING, "IMAGE: Data format not supported");
-
-    if (image.data != NULL) TRACELOG(LOG_INFO, "IMAGE: Data loaded successfully (%ix%i | %s | %i mipmaps)", image.width, image.height, rlGetPixelFormatName(image.format), image.mipmaps);
-    else TRACELOG(LOG_WARNING, "IMAGE: Failed to load image data");
-
+    TRACELOG(LOG_WARNING, "IMAGE: Data format not supported");
     return image;
 }
 
