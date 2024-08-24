@@ -2016,6 +2016,9 @@ static void ProcessMaterialsOBJ(Material *materials, tinyobj_material_t *mats, i
         // NOTE: Uses default shader, which only supports MATERIAL_MAP_DIFFUSE
         materials[m] = LoadMaterialDefault();
 
+        // if the obj did not provide materials, then just use the default
+        if (mats == NULL) continue;
+
         // Get default texture, in case no texture is defined
         // NOTE: rlgl default texture is a 1x1 pixel UNCOMPRESSED_R8G8B8A8
         materials[m].maps[MATERIAL_MAP_DIFFUSE].texture = (Texture2D){ rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
@@ -4119,10 +4122,10 @@ static Model LoadOBJ(const char* fileName)
 	model.meshCount = meshIndex + 1;
 	model.meshes = (Mesh*)MemAlloc(sizeof(Mesh) * model.meshCount);
 
+    if (objMaterialCount == 0) objMaterialCount = 1;
+
 	model.materialCount = objMaterialCount;
 	model.materials = (Material*)MemAlloc(sizeof(Material) * objMaterialCount);
-	for (unsigned int i = 0; i < objMaterialCount; i++)
-		model.materials[i] = LoadMaterialDefault();
 
 	model.meshMaterial = (int*)MemAlloc(sizeof(int) * model.meshCount);
 
@@ -4223,7 +4226,11 @@ static Model LoadOBJ(const char* fileName)
 			meshIndex++;
 		}
 
-		model.meshMaterial[meshIndex] = lastMaterial;
+        int matId = 0;
+        if (lastMaterial >= 0 && lastMaterial < objMaterialCount)
+            matId = lastMaterial;
+
+		model.meshMaterial[meshIndex] = matId;
 
 		for (int f = 0; f < objAttributes.face_num_verts[faceId]; f++)
 		{
