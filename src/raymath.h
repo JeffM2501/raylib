@@ -1,6 +1,6 @@
 /**********************************************************************************************
 *
-*   raymath v1.5 - Math functions to work with Vector2, Vector3, Matrix and Quaternions
+*   raymath v2.0 - Math functions to work with Vector2, Vector3, Matrix and Quaternions
 *
 *   CONVENTIONS:
 *     - Matrix structure is defined as row-major (memory layout) but parameters naming AND all
@@ -12,7 +12,7 @@
 *     - Functions are always self-contained, no function use another raymath function inside,
 *       required code is directly re-implemented inside
 *     - Functions input parameters are always received by value (2 unavoidable exceptions)
-*     - Functions use always a "result" variable for return
+*     - Functions use always a "result" variable for return (except C++ operators)
 *     - Functions are always defined inline
 *     - Angles are always in radians (DEG2RAD/RAD2DEG macros provided for convenience)
 *     - No compound literals used to make sure libray is compatible with C++
@@ -2582,10 +2582,10 @@ RMAPI void MatrixDecompose(Matrix mat, Vector3 *translation, Quaternion *rotatio
     }
 }
 
+#if defined(__cplusplus) && !defined(RAYMATH_DISABLE_CPP_OPERATORS)
 
-// optional C++ math operators
-// define RAYLIB_DISABLE_VECTOR_OPERATORS to disable
-#if defined(__cplusplus) && !defined(RAYMATH_DISABLE_OPERATORS)
+// Optional C++ math operators
+//-------------------------------------------------------------------------------
 
 //------------------Vector2-----------------//
 static constexpr Vector2 Vector2Zeros = { 0, 0 };
