@@ -2595,89 +2595,89 @@ static constexpr Vector2 Vector2UnitY = { 0, 1 };
 
 inline Vector2 operator + (const Vector2& lhs, const Vector2& rhs)
 {
-	return Vector2Add(lhs, rhs);
+    return Vector2Add(lhs, rhs);
 }
 
 inline const Vector2& operator += (Vector2& lhs, const Vector2& rhs)
 {
-	lhs = Vector2Add(lhs, rhs);
-	return lhs;
+    lhs = Vector2Add(lhs, rhs);
+    return lhs;
 }
 
 inline Vector2 operator - (const Vector2& lhs, const Vector2& rhs)
 {
-	return Vector2Subtract(lhs, rhs);
+    return Vector2Subtract(lhs, rhs);
 }
 
 inline const Vector2& operator -= (Vector2& lhs, const Vector2& rhs)
 {
-	lhs = Vector2Subtract(lhs, rhs);
-	return lhs;
+    lhs = Vector2Subtract(lhs, rhs);
+    return lhs;
 }
 
 inline Vector2 operator * (const Vector2& lhs, const float& rhs)
 {
-	return Vector2Scale(lhs, rhs);
+    return Vector2Scale(lhs, rhs);
 }
 
 inline const Vector2& operator *= (Vector2& lhs, const float& rhs)
 {
-	lhs = Vector2Scale(lhs, rhs);
-	return lhs;
+    lhs = Vector2Scale(lhs, rhs);
+    return lhs;
 }
 
 inline Vector2 operator * (const Vector2& lhs, const Vector2& rhs)
 {
-	return Vector2Multiply(lhs, rhs);
+    return Vector2Multiply(lhs, rhs);
 }
 
 inline const Vector2& operator *= (Vector2& lhs, const Vector2& rhs)
 {
-	lhs = Vector2Multiply(lhs, rhs);
-	return lhs;
+    lhs = Vector2Multiply(lhs, rhs);
+    return lhs;
 }
 
 inline Vector2 operator * (const Vector2& lhs, const Matrix& rhs)
 {
-	return Vector2Transform(lhs, rhs);
+    return Vector2Transform(lhs, rhs);
 }
 
 inline const Vector2& operator -= (Vector2& lhs, const Matrix& rhs)
 {
-	lhs = Vector2Transform(lhs, rhs);
-	return lhs;
+    lhs = Vector2Transform(lhs, rhs);
+    return lhs;
 }
 
 inline Vector2 operator / (const Vector2& lhs, const float& rhs)
 {
-	return Vector2Scale(lhs, 1.0f / rhs);
+    return Vector2Scale(lhs, 1.0f / rhs);
 }
 
 inline const Vector2& operator /= (Vector2& lhs, const float& rhs)
 {
-	lhs = Vector2Scale(lhs, rhs);
-	return lhs;
+    lhs = Vector2Scale(lhs, rhs);
+    return lhs;
 }
 
 inline Vector2 operator / (const Vector2& lhs, const Vector2& rhs)
 {
-	return Vector2Divide(lhs, rhs);
+    return Vector2Divide(lhs, rhs);
 }
 
 inline const Vector2& operator /= (Vector2& lhs, const Vector2& rhs)
 {
-	lhs = Vector2Divide(lhs, rhs);
-	return lhs;
+    lhs = Vector2Divide(lhs, rhs);
+    return lhs;
 }
 
 inline bool operator == (const Vector2& lhs, const Vector2& rhs)
 {
-	return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y);
+    return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y);
 }
 
 inline bool operator != (const Vector2& lhs, const Vector2& rhs)
 {
-	return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y);
+    return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y);
 }
 
 //------------------Vector3-----------------//
@@ -2689,89 +2689,89 @@ static constexpr Vector3 Vector3UnitZ = { 0, 0, 1 };
 
 inline Vector3 operator + (const Vector3& lhs, const Vector3& rhs)
 {
-	return Vector3Add(lhs, rhs);
+    return Vector3Add(lhs, rhs);
 }
 
 inline const Vector3& operator += (Vector3& lhs, const Vector3& rhs)
 {
-	lhs = Vector3Add(lhs, rhs);
-	return lhs;
+    lhs = Vector3Add(lhs, rhs);
+    return lhs;
 }
 
 inline Vector3 operator - (const Vector3& lhs, const Vector3& rhs)
 {
-	return Vector3Subtract(lhs, rhs);
+    return Vector3Subtract(lhs, rhs);
 }
 
 inline const Vector3& operator -= (Vector3& lhs, const Vector3& rhs)
 {
-	lhs = Vector3Subtract(lhs, rhs);
-	return lhs;
+    lhs = Vector3Subtract(lhs, rhs);
+    return lhs;
 }
 
 inline Vector3 operator * (const Vector3& lhs, const float& rhs)
 {
-	return Vector3Scale(lhs, rhs);
+    return Vector3Scale(lhs, rhs);
 }
 
 inline const Vector3& operator *= (Vector3& lhs, const float& rhs)
 {
-	lhs = Vector3Scale(lhs, rhs);
-	return lhs;
+    lhs = Vector3Scale(lhs, rhs);
+    return lhs;
 }
 
 inline Vector3 operator * (const Vector3& lhs, const Vector3& rhs)
 {
-	return Vector3Multiply(lhs, rhs);
+    return Vector3Multiply(lhs, rhs);
 }
 
 inline const Vector3& operator *= (Vector3& lhs, const Vector3& rhs)
 {
-	lhs = Vector3Multiply(lhs, rhs);
-	return lhs;
+    lhs = Vector3Multiply(lhs, rhs);
+    return lhs;
 }
 
 inline Vector3 operator * (const Vector3& lhs, const Matrix& rhs)
 {
-	return Vector3Transform(lhs, rhs);
+    return Vector3Transform(lhs, rhs);
 }
 
 inline const Vector3& operator -= (Vector3& lhs, const Matrix& rhs)
 {
-	lhs = Vector3Transform(lhs, rhs);
-	return lhs;
+    lhs = Vector3Transform(lhs, rhs);
+    return lhs;
 }
 
 inline Vector3 operator / (const Vector3& lhs, const float& rhs)
 {
-	return Vector3Scale(lhs, 1.0f / rhs);
+    return Vector3Scale(lhs, 1.0f / rhs);
 }
 
 inline const Vector3& operator /= (Vector3& lhs, const float& rhs)
 {
-	lhs = Vector3Scale(lhs, rhs);
-	return lhs;
+    lhs = Vector3Scale(lhs, rhs);
+    return lhs;
 }
 
 inline Vector3 operator / (const Vector3& lhs, const Vector3& rhs)
 {
-	return Vector3Divide(lhs, rhs);
+    return Vector3Divide(lhs, rhs);
 }
 
 inline const Vector3& operator /= (Vector3& lhs, const Vector3& rhs)
 {
-	lhs = Vector3Divide(lhs, rhs);
-	return lhs;
+    lhs = Vector3Divide(lhs, rhs);
+    return lhs;
 }
 
 inline bool operator == (const Vector3& lhs, const Vector3& rhs)
 {
-	return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y) && FloatEquals(lhs.z, rhs.z);
+    return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y) && FloatEquals(lhs.z, rhs.z);
 }
 
 inline bool operator != (const Vector3& lhs, const Vector3& rhs)
 {
-	return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y) || !FloatEquals(lhs.z, rhs.z);
+    return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y) || !FloatEquals(lhs.z, rhs.z);
 }
 
 //------------------Vector4-----------------//
@@ -2784,78 +2784,78 @@ static constexpr Vector4 Vector4UnitW = { 0, 0, 0, 1 };
 
 inline Vector4 operator + (const Vector4& lhs, const Vector4& rhs)
 {
-	return Vector4Add(lhs, rhs);
+    return Vector4Add(lhs, rhs);
 }
 
 inline const Vector4& operator += (Vector4& lhs, const Vector4& rhs)
 {
-	lhs = Vector4Add(lhs, rhs);
-	return lhs;
+    lhs = Vector4Add(lhs, rhs);
+    return lhs;
 }
 
 inline Vector4 operator - (const Vector4& lhs, const Vector4& rhs)
 {
-	return Vector4Subtract(lhs, rhs);
+    return Vector4Subtract(lhs, rhs);
 }
 
 inline const Vector4& operator -= (Vector4& lhs, const Vector4& rhs)
 {
-	lhs = Vector4Subtract(lhs, rhs);
-	return lhs;
+    lhs = Vector4Subtract(lhs, rhs);
+    return lhs;
 }
 
 inline Vector4 operator * (const Vector4& lhs, const float& rhs)
 {
-	return Vector4Scale(lhs, rhs);
+    return Vector4Scale(lhs, rhs);
 }
 
 inline const Vector4& operator *= (Vector4& lhs, const float& rhs)
 {
-	lhs = Vector4Scale(lhs, rhs);
-	return lhs;
+    lhs = Vector4Scale(lhs, rhs);
+    return lhs;
 }
 
 inline Vector4 operator * (const Vector4& lhs, const Vector4& rhs)
 {
-	return Vector4Multiply(lhs, rhs);
+    return Vector4Multiply(lhs, rhs);
 }
 
 inline const Vector4& operator *= (Vector4& lhs, const Vector4& rhs)
 {
-	lhs = Vector4Multiply(lhs, rhs);
-	return lhs;
+    lhs = Vector4Multiply(lhs, rhs);
+    return lhs;
 }
 
 inline Vector4 operator / (const Vector4& lhs, const float& rhs)
 {
-	return Vector4Scale(lhs, 1.0f / rhs);
+    return Vector4Scale(lhs, 1.0f / rhs);
 }
 
 inline const Vector4& operator /= (Vector4& lhs, const float& rhs)
 {
-	lhs = Vector4Scale(lhs, rhs);
-	return lhs;
+    lhs = Vector4Scale(lhs, rhs);
+    return lhs;
 }
 
 inline Vector4 operator / (const Vector4& lhs, const Vector4& rhs)
 {
-	return Vector4Divide(lhs, rhs);
+    return Vector4Divide(lhs, rhs);
 }
 
 inline const Vector4& operator /= (Vector4& lhs, const Vector4& rhs)
 {
-	lhs = Vector4Divide(lhs, rhs);
-	return lhs;
+    lhs = Vector4Divide(lhs, rhs);
+    return lhs;
 }
 
 inline bool operator == (const Vector4& lhs, const Vector4& rhs)
 {
-	return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y) && FloatEquals(lhs.z, rhs.z) && FloatEquals(lhs.w, rhs.w);
+    return FloatEquals(lhs.x, rhs.x) && FloatEquals(lhs.y, rhs.y) && FloatEquals(lhs.z, rhs.z) && FloatEquals(lhs.w, rhs.w);
 }
 
 inline bool operator != (const Vector4& lhs, const Vector4& rhs)
 {
-	return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y) || !FloatEquals(lhs.z, rhs.z) || !FloatEquals(lhs.w, rhs.w);
+    return !FloatEquals(lhs.x, rhs.x) || !FloatEquals(lhs.y, rhs.y) || !FloatEquals(lhs.z, rhs.z) || !FloatEquals(lhs.w, rhs.w);
 }
 
 //------------------Quaternion-----------------//
@@ -2865,35 +2865,35 @@ static constexpr Quaternion QuaternionUnitX = { 0, 0, 0, 1 };
 
 inline Quaternion operator + (const Quaternion& lhs, const float& rhs)
 {
-	return QuaternionAddValue(lhs, rhs);
+    return QuaternionAddValue(lhs, rhs);
 }
 
 inline const Quaternion& operator += (Quaternion& lhs, const float& rhs)
 {
-	lhs = QuaternionAddValue(lhs, rhs);
-	return lhs;
+    lhs = QuaternionAddValue(lhs, rhs);
+    return lhs;
 }
 
 inline Quaternion operator - (const Quaternion& lhs, const float& rhs)
 {
-	return QuaternionSubtractValue(lhs, rhs);
+    return QuaternionSubtractValue(lhs, rhs);
 }
 
 inline const Quaternion& operator -= (Quaternion& lhs, const float& rhs)
 {
-	lhs = QuaternionSubtractValue(lhs, rhs);
-	return lhs;
+    lhs = QuaternionSubtractValue(lhs, rhs);
+    return lhs;
 }
 
 inline Quaternion operator * (const Quaternion& lhs, const Matrix& rhs)
 {
-	return QuaternionTransform(lhs, rhs);
+    return QuaternionTransform(lhs, rhs);
 }
 
 inline const Quaternion& operator *= (Quaternion& lhs, const Matrix& rhs)
 {
-	lhs = QuaternionTransform(lhs, rhs);
-	return lhs;
+    lhs = QuaternionTransform(lhs, rhs);
+    return lhs;
 }
 #endif // C++ operators
 
