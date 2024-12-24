@@ -360,8 +360,6 @@ typedef struct Mesh {
     float *animNormals;     // Animated normals (after bones transformations)
     unsigned char *boneIds; // Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)
     float *boneWeights;     // Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)
-    Matrix *boneMatrices;   // Bones animated transformation matrices
-    int boneCount;          // Number of bones
 
     // OpenGL identifiers
     unsigned int vaoId;     // OpenGL Vertex Array Object id
@@ -402,6 +400,12 @@ typedef struct BoneInfo {
 } BoneInfo;
 
 // Model, meshes, materials and animation data
+typedef struct ModelBonePose
+{
+	Matrix* boneMatrices;   // Bones animated transformation matrices
+	int boneCount;          // Number of bones
+}ModelBonePose;
+
 typedef struct Model {
     Matrix transform;       // Local transform matrix
 
@@ -412,9 +416,10 @@ typedef struct Model {
     int *meshMaterial;      // Mesh material number
 
     // Animation data
-    int boneCount;          // Number of bones
+    ModelBonePose currentBonePose; // A cache of all the matrix transforms for the current bones pose
     BoneInfo *bones;        // Bones information (skeleton)
     Transform *bindPose;    // Bones base transformation (pose)
+
 } Model;
 
 // ModelAnimation
@@ -1564,6 +1569,7 @@ RLAPI BoundingBox GetModelBoundingBox(Model model);                             
 // Model drawing functions
 RLAPI void DrawModel(Model model, Vector3 position, float scale, Color tint);               // Draw a model (with texture if set)
 RLAPI void DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model with extended parameters
+RLAPI void DrawModelPro(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint, ModelBonePose* pose); // Draw a model with extended parameters
 RLAPI void DrawModelWires(Model model, Vector3 position, float scale, Color tint);          // Draw a model wires (with texture if set)
 RLAPI void DrawModelWiresEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint); // Draw a model wires (with texture if set) with extended parameters
 RLAPI void DrawModelPoints(Model model, Vector3 position, float scale, Color tint); // Draw a model as points
@@ -1606,12 +1612,17 @@ RLAPI void SetMaterialTexture(Material *material, int mapType, Texture2D texture
 RLAPI void SetModelMeshMaterial(Model *model, int meshId, int materialId);                  // Set material for a mesh
 
 // Model animations loading/unloading functions
-RLAPI ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);            // Load model animations from file
-RLAPI void UpdateModelAnimation(Model model, ModelAnimation anim, int frame);               // Update model animation pose (CPU)
-RLAPI void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame);          // Update model animation mesh bone matrices (GPU skinning)
-RLAPI void UnloadModelAnimation(ModelAnimation anim);                                       // Unload animation data
-RLAPI void UnloadModelAnimations(ModelAnimation *animations, int animCount);                // Unload animation array data
-RLAPI bool IsModelAnimationValid(Model model, ModelAnimation anim);                         // Check model animation skeleton match
+RLAPI ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);                                    // Load model animations from file
+RLAPI void UpdateModelAnimation(Model model, ModelAnimation anim, int frame);                                       // Update model animation pose (CPU)
+RLAPI void UpdateModelVertsToPose(Model model, ModelBonePose* pose);                // Update model animation pose (CPU)
+RLAPI void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame);                                  // Update model animation mesh bone matrices (GPU skinning)
+RLAPI void UpdateModelAnimationBonesPose(Model model, ModelAnimation anim, int frame, ModelBonePose* outputPose);     // Update model animation mesh bone matrices (GPU skinning)
+RLAPI void UnloadModelAnimation(ModelAnimation anim);                                                               // Unload animation data
+RLAPI void UnloadModelAnimations(ModelAnimation *animations, int animCount);                                        // Unload animation array data
+RLAPI bool IsModelAnimationValid(Model model, ModelAnimation anim);                                                 // Check model animation skeleton match
+
+RLAPI ModelBonePose* LoadModelBonePose(Model model);                                        // Creates a new model bone pose for use
+RLAPI void UnloadModelBonePose(ModelBonePose* pose);                                        // unload model bone pose
 
 // Collision detection functions
 RLAPI bool CheckCollisionSpheres(Vector3 center1, float radius1, Vector3 center2, float radius2); // Check collision between two spheres

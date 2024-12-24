@@ -1210,6 +1210,8 @@ void UnloadModel(Model model)
     RL_FREE(model.bones);
     RL_FREE(model.bindPose);
 
+    RL_FREE(model.currentBonePose.boneMatrices);
+
     TRACELOG(LOG_INFO, "MODEL: Unloaded model (and meshes) from RAM and VRAM");
 }
 
@@ -1506,13 +1508,6 @@ void DrawMesh(Mesh mesh, Material material, Matrix transform)
     // Upload model normal matrix (if locations available)
     if (material.shader.locs[SHADER_LOC_MATRIX_NORMAL] != -1) rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
 
-#ifdef RL_SUPPORT_MESH_GPU_SKINNING
-    // Upload Bone Transforms
-    if ((material.shader.locs[SHADER_LOC_BONE_MATRICES] != -1) && mesh.boneMatrices)
-    {
-        rlSetUniformMatrices(material.shader.locs[SHADER_LOC_BONE_MATRICES], mesh.boneMatrices, mesh.boneCount);
-    }
-#endif
     //-----------------------------------------------------
 
     // Bind active texture maps (if available)
@@ -1752,14 +1747,6 @@ void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, i
     // Upload model normal matrix (if locations available)
     if (material.shader.locs[SHADER_LOC_MATRIX_NORMAL] != -1) rlSetUniformMatrix(material.shader.locs[SHADER_LOC_MATRIX_NORMAL], MatrixTranspose(MatrixInvert(matModel)));
 
-#ifdef RL_SUPPORT_MESH_GPU_SKINNING
-    // Upload Bone Transforms
-    if ((material.shader.locs[SHADER_LOC_BONE_MATRICES] != -1) && mesh.boneMatrices)
-    {
-        rlSetUniformMatrices(material.shader.locs[SHADER_LOC_BONE_MATRICES], mesh.boneMatrices, mesh.boneCount);
-    }
-#endif
-
     //-----------------------------------------------------
 
     // Bind active texture maps (if available)
@@ -1932,7 +1919,6 @@ void UnloadMesh(Mesh mesh)
     RL_FREE(mesh.animNormals);
     RL_FREE(mesh.boneWeights);
     RL_FREE(mesh.boneIds);
-    RL_FREE(mesh.boneMatrices);
 }
 
 // Export mesh data to file
@@ -2262,29 +2248,18 @@ ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount)
 }
 
 // Update model animated bones transform matrices for a given frame
-// NOTE: Updated data is not uploaded to GPU but kept at model.meshes[i].boneMatrices[boneId],
-// to be uploaded to shader at drawing, in case GPU skinning is enabled
+// NOTE: Updated data is not uploaded to GPU but kept in the boneMatrices[boneId] array for the current pose
+// to be uploaded to shader at drawing or applied to mesh verts by the appropriate function
 void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame)
 {
-    if ((anim.frameCount > 0) && (anim.bones != NULL) && (anim.framePoses != NULL))
+    UpdateModelAnimationBonesPose(model, anim, frame, &model.currentBonePose);
+}
+
+void UpdateModelAnimationBonesPose(Model model, ModelAnimation anim, int frame, ModelBonePose* outputPose)
+{
+    if ((outputPose != NULL) && (anim.frameCount > 0) && (anim.bones != NULL) && (anim.framePoses != NULL) && (outputPose->boneMatrices != NULL))
     {
         if (frame >= anim.frameCount) frame = frame%anim.frameCount;
-
-        // Get first mesh which have bones
-        int firstMeshWithBones = -1;
-
-        for (int i = 0; i < model.meshCount; i++)
-        {
-            if (model.meshes[i].boneMatrices)
-            {
-                assert(model.meshes[i].boneCount == anim.boneCount);
-                if (firstMeshWithBones == -1)
-                {
-                    firstMeshWithBones = i;
-                    break;
-                }
-            }
-        }
 
         // Update all bones and boneMatrices of first mesh with bones.
         for (int boneId = 0; boneId < anim.boneCount; boneId++)
@@ -2312,32 +2287,23 @@ void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame)
                 MatrixTranslate(boneTranslation.x, boneTranslation.y, boneTranslation.z)),
                 MatrixScale(boneScale.x, boneScale.y, boneScale.z));
 
-            model.meshes[firstMeshWithBones].boneMatrices[boneId] = boneMatrix;
-        }
-
-        // Update remaining meshes with bones
-        // NOTE: Using deep copy because shallow copy results in double free with 'UnloadModel()'
-        if (firstMeshWithBones != -1)
-        {
-            for (int i = firstMeshWithBones + 1; i < model.meshCount; i++)
-            {
-                if (model.meshes[i].boneMatrices)
-                {
-                    memcpy(model.meshes[i].boneMatrices,
-                        model.meshes[firstMeshWithBones].boneMatrices,
-                        model.meshes[i].boneCount*sizeof(model.meshes[i].boneMatrices[0]));
-                }
-            }
+            outputPose->boneMatrices[boneId] = boneMatrix;
         }
     }
+}
+
+void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
+{
+    UpdateModelAnimationBones(model, anim, frame);
+    UpdateModelVertsToPose(model, &model.currentBonePose);
 }
 
 // at least 2x speed up vs the old method
 // Update model animated vertex data (positions and normals) for a given frame
 // NOTE: Updated data is uploaded to GPU
-void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
+void UpdateModelVertsToPose(Model model, ModelBonePose* pose)
 {
-    UpdateModelAnimationBones(model,anim,frame);
+    if (pose == NULL) return;
 
     for (int m = 0; m < model.meshCount; m++)
     {
@@ -2370,7 +2336,7 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
                 // Early stop when no transformation will be applied
                 if (boneWeight == 0.0f) continue;
                 animVertex = (Vector3){ mesh.vertices[vCounter], mesh.vertices[vCounter + 1], mesh.vertices[vCounter + 2] };
-                animVertex = Vector3Transform(animVertex,model.meshes[m].boneMatrices[boneId]);
+                animVertex = Vector3Transform(animVertex, pose->boneMatrices[boneId]);
                 mesh.animVertices[vCounter] += animVertex.x*boneWeight;
                 mesh.animVertices[vCounter+1] += animVertex.y*boneWeight;
                 mesh.animVertices[vCounter+2] += animVertex.z*boneWeight;
@@ -2381,7 +2347,7 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
                 if (mesh.normals != NULL)
                 {
                     animNormal = (Vector3){ mesh.normals[vCounter], mesh.normals[vCounter + 1], mesh.normals[vCounter + 2] };
-                    animNormal = Vector3Transform(animNormal,model.meshes[m].boneMatrices[boneId]);
+                    animNormal = Vector3Transform(animNormal, pose->boneMatrices[boneId]);
                     mesh.animNormals[vCounter] += animNormal.x*boneWeight;
                     mesh.animNormals[vCounter + 1] += animNormal.y*boneWeight;
                     mesh.animNormals[vCounter + 2] += animNormal.z*boneWeight;
@@ -2419,16 +2385,37 @@ bool IsModelAnimationValid(Model model, ModelAnimation anim)
 {
     int result = true;
 
-    if (model.boneCount != anim.boneCount) result = false;
+    if (model.currentBonePose.boneCount != anim.boneCount) result = false;
     else
     {
-        for (int i = 0; i < model.boneCount; i++)
+        for (int i = 0; i < model.currentBonePose.boneCount; i++)
         {
             if (model.bones[i].parent != anim.bones[i].parent) { result = false; break; }
         }
     }
 
     return result;
+}
+
+ModelBonePose* LoadModelBonePose(Model model)
+{
+    if (model.currentBonePose.boneCount == 0) return NULL;
+
+    ModelBonePose* pose = RL_MALLOC(sizeof(ModelBonePose));
+    pose->boneCount = model.currentBonePose.boneCount;
+
+    pose->boneMatrices = RL_CALLOC(model.currentBonePose.boneCount, sizeof(Matrix));
+    memcpy(pose->boneMatrices, model.currentBonePose.boneMatrices, model.currentBonePose.boneCount * sizeof(Matrix));
+
+    return pose;
+}
+
+void UnloadModelBonePose(ModelBonePose* pose)
+{
+    if (pose == NULL) return;
+
+    RL_FREE(pose->boneMatrices);
+    RL_FREE(pose);
 }
 
 #if defined(SUPPORT_MESH_GENERATION)
@@ -3729,6 +3716,11 @@ void DrawModel(Model model, Vector3 position, float scale, Color tint)
 // Draw a model with extended parameters
 void DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint)
 {
+    DrawModelPro(model, position, rotationAxis, rotationAngle, scale, tint, &model.currentBonePose);
+}
+
+void DrawModelPro(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint, ModelBonePose* pose)
+{
     // Calculate transformation matrix from function parameters
     // Get transform matrix (rotation -> scale -> translation)
     Matrix matScale = MatrixScale(scale.x, scale.y, scale.z);
@@ -3751,6 +3743,19 @@ void DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rota
         colorTint.a = (unsigned char)(((int)color.a*(int)tint.a)/255);
 
         model.materials[model.meshMaterial[i]].maps[MATERIAL_MAP_DIFFUSE].color = colorTint;
+
+#ifdef RL_SUPPORT_MESH_GPU_SKINNING
+		// Upload Bone Transforms
+		if (pose && pose->boneMatrices)
+		{
+			if ((model.materials[model.meshMaterial[i]].shader.locs[SHADER_LOC_BONE_MATRICES] != -1))
+			{
+                rlEnableShader(model.materials[model.meshMaterial[i]].shader.id);
+				rlSetUniformMatrices(model.materials[model.meshMaterial[i]].shader.locs[SHADER_LOC_BONE_MATRICES], pose->boneMatrices, pose->boneCount);
+			}
+		}
+#endif
+
         DrawMesh(model.meshes[i], model.materials[model.meshMaterial[i]], model.transform);
         model.materials[model.meshMaterial[i]].maps[MATERIAL_MAP_DIFFUSE].color = color;
     }
@@ -4777,7 +4782,7 @@ static Model LoadIQM(const char *fileName)
     //fread(ijoint, sizeof(IQMJoint), iqmHeader->num_joints, iqmFile);
     memcpy(ijoint, fileDataPtr + iqmHeader->ofs_joints, iqmHeader->num_joints*sizeof(IQMJoint));
 
-    model.boneCount = iqmHeader->num_joints;
+    model.currentBonePose.boneCount = iqmHeader->num_joints;
     model.bones = RL_MALLOC(iqmHeader->num_joints*sizeof(BoneInfo));
     model.bindPose = RL_MALLOC(iqmHeader->num_joints*sizeof(Transform));
 
@@ -4804,18 +4809,15 @@ static Model LoadIQM(const char *fileName)
         model.bindPose[i].scale.z = ijoint[i].scale[2];
     }
 
-    BuildPoseFromParentJoints(model.bones, model.boneCount, model.bindPose);
+	model.currentBonePose.boneCount = iqmHeader->num_joints;
+	BuildPoseFromParentJoints(model.bones, model.currentBonePose.boneCount, model.bindPose);
 
-    for (int i = 0; i < model.meshCount; i++)
-    {
-        model.meshes[i].boneCount = model.boneCount;
-        model.meshes[i].boneMatrices = RL_CALLOC(model.meshes[i].boneCount, sizeof(Matrix));
+	model.currentBonePose.boneMatrices = RL_CALLOC(model.currentBonePose.boneCount, sizeof(Matrix));
 
-        for (int j = 0; j < model.meshes[i].boneCount; j++)
-        {
-            model.meshes[i].boneMatrices[j] = MatrixIdentity();
-        }
-    }
+	for (int j = 0; j < model.currentBonePose.boneCount; j++)
+	{
+		model.currentBonePose.boneMatrices[j] = MatrixIdentity();
+	}
 
     UnloadFileData(fileData);
 
@@ -5753,10 +5755,19 @@ static Model LoadGLTF(const char *fileName)
         if (data->skins_count > 0)
         {
             cgltf_skin skin = data->skins[0];
-            model.bones = LoadBoneInfoGLTF(skin, &model.boneCount);
-            model.bindPose = RL_MALLOC(model.boneCount*sizeof(Transform));
+            model.bones = LoadBoneInfoGLTF(skin, &model.currentBonePose.boneCount);
 
-            for (int i = 0; i < model.boneCount; i++)
+			// Bone Transform Matrices
+			model.currentBonePose.boneMatrices = RL_CALLOC(model.currentBonePose.boneCount, sizeof(Matrix));
+
+			for (int j = 0; j < model.currentBonePose.boneCount; j++)
+			{
+				model.currentBonePose.boneMatrices[j] = MatrixIdentity();
+			}
+
+            model.bindPose = RL_MALLOC(model.currentBonePose.boneCount*sizeof(Transform));
+
+            for (int i = 0; i < model.currentBonePose.boneCount; i++)
             {
                 cgltf_node *node = skin.joints[i];
                 cgltf_float worldTransform[16];
@@ -5903,19 +5914,8 @@ static Model LoadGLTF(const char *fileName)
                 {
                     memcpy(model.meshes[meshIndex].animNormals, model.meshes[meshIndex].normals, model.meshes[meshIndex].vertexCount*3*sizeof(float));
                 }
-
-                // Bone Transform Matrices
-                model.meshes[meshIndex].boneCount = model.boneCount;
-                model.meshes[meshIndex].boneMatrices = RL_CALLOC(model.meshes[meshIndex].boneCount, sizeof(Matrix));
-
-                for (int j = 0; j < model.meshes[meshIndex].boneCount; j++)
-                {
-                    model.meshes[meshIndex].boneMatrices[j] = MatrixIdentity();
-                }
-
                 meshIndex++;       // Move to next mesh
             }
-
         }
 
         // Free all cgltf loaded data
@@ -6633,9 +6633,15 @@ static Model LoadM3D(const char *fileName)
         // Load bones
         if (m3d->numbone)
         {
-            model.boneCount = m3d->numbone + 1;
-            model.bones = RL_CALLOC(model.boneCount, sizeof(BoneInfo));
-            model.bindPose = RL_CALLOC(model.boneCount, sizeof(Transform));
+            model.currentBonePose.boneCount = m3d->numbone + 1;
+            model.bones = RL_CALLOC(model.currentBonePose.boneCount, sizeof(BoneInfo));
+            model.bindPose = RL_CALLOC(model.currentBonePose.boneCount, sizeof(Transform));
+
+			model.currentBonePose.boneMatrices = RL_CALLOC(model.currentBonePose.boneCount, sizeof(Matrix));
+			for (j = 0; j < model.currentBonePose.boneCount; j++)
+			{
+				model.currentBonePose.boneMatrices[j] = MatrixIdentity();
+			}
 
             for (i = 0; i < (int)m3d->numbone; i++)
             {
@@ -6684,13 +6690,6 @@ static Model LoadM3D(const char *fileName)
             {
                 memcpy(model.meshes[i].animVertices, model.meshes[i].vertices, model.meshes[i].vertexCount*3*sizeof(float));
                 memcpy(model.meshes[i].animNormals, model.meshes[i].normals, model.meshes[i].vertexCount*3*sizeof(float));
-
-                model.meshes[i].boneCount = model.boneCount;
-                model.meshes[i].boneMatrices = RL_CALLOC(model.meshes[i].boneCount, sizeof(Matrix));
-                for (j = 0; j < model.meshes[i].boneCount; j++)
-                {
-                    model.meshes[i].boneMatrices[j] = MatrixIdentity();
-                }
             }
         }
 

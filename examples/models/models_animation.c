@@ -82,7 +82,7 @@ int main(void)
 
                 DrawModelEx(model, position, (Vector3){ 1.0f, 0.0f, 0.0f }, -90.0f, (Vector3){ 1.0f, 1.0f, 1.0f }, WHITE);
 
-                for (int i = 0; i < model.boneCount; i++)
+                for (int i = 0; i < model.currentBonePose.boneCount; i++)
                 {
                     DrawCube(anims[0].framePoses[animFrameCounter][i].translation, 0.2f, 0.2f, 0.2f, RED);
                 }

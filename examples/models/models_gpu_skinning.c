@@ -48,19 +48,28 @@ int main(void)
     // Load gltf model
     Model characterModel = LoadModel("resources/models/gltf/greenman.glb"); // Load character model
     
-    // Load skinning shader
+//     // Load skinning shader
     Shader skinningShader = LoadShader(TextFormat("resources/shaders/glsl%i/skinning.vs", GLSL_VERSION),
-                                       TextFormat("resources/shaders/glsl%i/skinning.fs", GLSL_VERSION));
+                                        TextFormat("resources/shaders/glsl%i/skinning.fs", GLSL_VERSION));
     
-    characterModel.materials[1].shader = skinningShader;
+    for (int i = 0; i < characterModel.materialCount; i++)
+    {
+        characterModel.materials[i].shader = skinningShader;
+    }
     
     // Load gltf model animations
     int animsCount = 0;
-    unsigned int animIndex = 0;
-    unsigned int animCurrentFrame = 0;
+    unsigned int animIndex1 = 0;
+    unsigned int animCurrentFrame1 = 0;
+	unsigned int animIndex2 = 1;
+	unsigned int animCurrentFrame2 = 0;
     ModelAnimation *modelAnimations = LoadModelAnimations("resources/models/gltf/greenman.glb", &animsCount);
 
-    Vector3 position = { 0.0f, 0.0f, 0.0f }; // Set model position
+    Vector3 position1 = { 0.0f, 0.0f, 0.0f }; // Set model position
+	Vector3 position2 = { 0.0f, 0.0f, 2.0f }; // Set model position
+
+    ModelBonePose* pose1 = LoadModelBonePose(characterModel);
+    ModelBonePose* pose2 = LoadModelBonePose(characterModel);
 
     DisableCursor();                    // Limit cursor to relative movement inside the window
 
@@ -75,15 +84,26 @@ int main(void)
         UpdateCamera(&camera, CAMERA_THIRD_PERSON);
         
         // Select current animation
-        if (IsKeyPressed(KEY_T)) animIndex = (animIndex + 1)%animsCount;
-        else if (IsKeyPressed(KEY_G)) animIndex = (animIndex + animsCount - 1)%animsCount;
-
+        if (IsKeyPressed(KEY_T))
+        {
+            animIndex1 = (animIndex1 + 1) % animsCount;
+            animIndex2 = (animIndex2 + 1) % animsCount;
+        }
+        else if (IsKeyPressed(KEY_G))
+        {
+            animIndex1 = (animIndex1 + animsCount - 1) % animsCount;
+            animIndex2 = (animIndex2 + animsCount - 1) % animsCount;
+        }
+ 
         // Update model animation
-        ModelAnimation anim = modelAnimations[animIndex];
-        animCurrentFrame = (animCurrentFrame + 1)%anim.frameCount;
-        characterModel.transform = MatrixTranslate(position.x, position.y, position.z);
-        UpdateModelAnimationBones(characterModel, anim, animCurrentFrame);
-        //----------------------------------------------------------------------------------
+        ModelAnimation anim = modelAnimations[animIndex1];
+        animCurrentFrame1 = (animCurrentFrame1 + 1)%anim.frameCount;
+        UpdateModelAnimationBonesPose(characterModel, anim, animCurrentFrame1, pose1);
+
+		anim = modelAnimations[animIndex2];
+		animCurrentFrame2 = (animCurrentFrame2 + 1) % anim.frameCount;
+		UpdateModelAnimationBonesPose(characterModel, anim, animCurrentFrame2, pose2);
+        //---------------------------------------------------------------------------------
 
         // Draw
         //----------------------------------------------------------------------------------
@@ -93,10 +113,10 @@ int main(void)
 
             BeginMode3D(camera);
             
-                // Draw character mesh, pose calculation is done in shader (GPU skinning)
-                DrawMesh(characterModel.meshes[0], characterModel.materials[1], characterModel.transform);
-
-                DrawGrid(10, 1.0f);
+            // Draw character models, pose calculation is done in shader (GPU skinning)
+			DrawModelPro(characterModel, position1, Vector3Zero(), 0, Vector3One(), WHITE, pose1);
+            DrawModelPro(characterModel, position2, Vector3Zero(), 0, Vector3One(), WHITE, pose2);
+			DrawGrid(10, 1.0f);
                 
             EndMode3D();
 
@@ -108,6 +128,8 @@ int main(void)
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
+    UnloadModelBonePose(pose1);
+    UnloadModelBonePose(pose2);
     UnloadModelAnimations(modelAnimations, animsCount); // Unload model animation
     UnloadModel(characterModel);    // Unload model and meshes/material
     UnloadShader(skinningShader);   // Unload GPU skinning shader

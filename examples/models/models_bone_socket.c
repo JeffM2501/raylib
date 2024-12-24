@@ -62,7 +62,7 @@ int main(void)
     int boneSocketIndex[BONE_SOCKETS] = { -1, -1, -1 };
 
     // search bones for sockets 
-    for (int i = 0; i < characterModel.boneCount; i++)
+    for (int i = 0; i < characterModel.currentBonePose.boneCount; i++)
     {
         if (TextIsEqual(characterModel.bones[i].name, "socket_hat"))
         {
