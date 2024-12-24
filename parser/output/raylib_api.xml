@@ -160,7 +160,7 @@
             <Field type="float" name="rotation" desc="Camera rotation in degrees" />
             <Field type="float" name="zoom" desc="Camera zoom (scaling), should be 1.0f by default" />
         </Struct>
-        <Struct name="Mesh" fieldCount="17" desc="Mesh, vertex data and vao/vbo">
+        <Struct name="Mesh" fieldCount="15" desc="Mesh, vertex data and vao/vbo">
             <Field type="int" name="vertexCount" desc="Number of vertices stored in arrays" />
             <Field type="int" name="triangleCount" desc="Number of triangles stored (indexed or not)" />
             <Field type="float *" name="vertices" desc="Vertex position (XYZ - 3 components per vertex) (shader-location = 0)" />
@@ -174,8 +174,6 @@
             <Field type="float *" name="animNormals" desc="Animated normals (after bones transformations)" />
             <Field type="unsigned char *" name="boneIds" desc="Vertex bone ids, max 255 bone ids, up to 4 bones influence by vertex (skinning) (shader-location = 6)" />
             <Field type="float *" name="boneWeights" desc="Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)" />
-            <Field type="Matrix *" name="boneMatrices" desc="Bones animated transformation matrices" />
-            <Field type="int" name="boneCount" desc="Number of bones" />
             <Field type="unsigned int" name="vaoId" desc="OpenGL Vertex Array Object id" />
             <Field type="unsigned int *" name="vboId" desc="OpenGL Vertex Buffer Objects id (default vertex data)" />
         </Struct>
@@ -202,14 +200,14 @@
             <Field type="char[32]" name="name" desc="Bone name" />
             <Field type="int" name="parent" desc="Bone parent" />
         </Struct>
-        <Struct name="Model" fieldCount="9" desc="Model, meshes, materials and animation data">
+        <Struct name="Model" fieldCount="9" desc="">
             <Field type="Matrix" name="transform" desc="Local transform matrix" />
             <Field type="int" name="meshCount" desc="Number of meshes" />
             <Field type="int" name="materialCount" desc="Number of materials" />
             <Field type="Mesh *" name="meshes" desc="Meshes array" />
             <Field type="Material *" name="materials" desc="Materials array" />
             <Field type="int *" name="meshMaterial" desc="Mesh material number" />
-            <Field type="int" name="boneCount" desc="Number of bones" />
+            <Field type="ModelBonePose" name="currentBonePose" desc="A cache of all the matrix transforms for the current bones pose" />
             <Field type="BoneInfo *" name="bones" desc="Bones information (skeleton)" />
             <Field type="Transform *" name="bindPose" desc="Bones base transformation (pose)" />
         </Struct>
@@ -679,7 +677,7 @@
             <Param type="unsigned int" name="frames" desc="" />
         </Callback>
     </Callbacks>
-    <Functions count="582">
+    <Functions count="587">
         <Function name="InitWindow" retType="void" paramCount="3" desc="Initialize window and OpenGL context">
             <Param type="int" name="width" desc="" />
             <Param type="int" name="height" desc="" />
@@ -2653,6 +2651,15 @@
             <Param type="Vector3" name="scale" desc="" />
             <Param type="Color" name="tint" desc="" />
         </Function>
+        <Function name="DrawModelPro" retType="void" paramCount="7" desc="Draw a model with extended parameters">
+            <Param type="Model" name="model" desc="" />
+            <Param type="Vector3" name="position" desc="" />
+            <Param type="Vector3" name="rotationAxis" desc="" />
+            <Param type="float" name="rotationAngle" desc="" />
+            <Param type="Vector3" name="scale" desc="" />
+            <Param type="Color" name="tint" desc="" />
+            <Param type="ModelBonePose*" name="pose" desc="" />
+        </Function>
         <Function name="DrawModelWires" retType="void" paramCount="4" desc="Draw a model wires (with texture if set)">
             <Param type="Model" name="model" desc="" />
             <Param type="Vector3" name="position" desc="" />
@@ -2836,10 +2843,20 @@
             <Param type="ModelAnimation" name="anim" desc="" />
             <Param type="int" name="frame" desc="" />
         </Function>
+        <Function name="UpdateModelVertsToPose" retType="void" paramCount="2" desc="Update model animation pose (CPU)">
+            <Param type="Model" name="model" desc="" />
+            <Param type="ModelBonePose*" name="pose" desc="" />
+        </Function>
         <Function name="UpdateModelAnimationBones" retType="void" paramCount="3" desc="Update model animation mesh bone matrices (GPU skinning)">
             <Param type="Model" name="model" desc="" />
             <Param type="ModelAnimation" name="anim" desc="" />
             <Param type="int" name="frame" desc="" />
+        </Function>
+        <Function name="UpdateModelAnimationBonesPose" retType="void" paramCount="4" desc="Update model animation mesh bone matrices (GPU skinning)">
+            <Param type="Model" name="model" desc="" />
+            <Param type="ModelAnimation" name="anim" desc="" />
+            <Param type="int" name="frame" desc="" />
+            <Param type="ModelBonePose*" name="outputPose" desc="" />
         </Function>
         <Function name="UnloadModelAnimation" retType="void" paramCount="1" desc="Unload animation data">
             <Param type="ModelAnimation" name="anim" desc="" />
@@ -2851,6 +2868,12 @@
         <Function name="IsModelAnimationValid" retType="bool" paramCount="2" desc="Check model animation skeleton match">
             <Param type="Model" name="model" desc="" />
             <Param type="ModelAnimation" name="anim" desc="" />
+        </Function>
+        <Function name="LoadModelBonePose" retType="ModelBonePose*" paramCount="1" desc="Creates a new model bone pose for use">
+            <Param type="Model" name="model" desc="" />
+        </Function>
+        <Function name="UnloadModelBonePose" retType="void" paramCount="1" desc="unload model bone pose">
+            <Param type="ModelBonePose*" name="pose" desc="" />
         </Function>
         <Function name="CheckCollisionSpheres" retType="bool" paramCount="4" desc="Check collision between two spheres">
             <Param type="Vector3" name="center1" desc="" />
