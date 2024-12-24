@@ -7679,6 +7679,19 @@ return {
       }
     },
     {
+      name = "InterpolateModelAnimationBonesPose",
+      description = "Update a ModelBonePose with an interpolation between two animation frames",
+      returnType = "void",
+      params = {
+        {type = "Model", name = "model"},
+        {type = "ModelAnimation", name = "anim"},
+        {type = "int", name = "frame1"},
+        {type = "int", name = "frame2"},
+        {type = "float", name = "param"},
+        {type = "ModelBonePose*", name = "outputPose"}
+      }
+    },
+    {
       name = "UnloadModelAnimation",
       description = "Unload animation data",
       returnType = "void",
@@ -7691,7 +7704,7 @@ return {
       description = "Unload animation array data",
       returnType = "void",
       params = {
-        {type = "ModelAnimation *", name = "animations"},
+        {type = "ModelAnimation*", name = "animations"},
         {type = "int", name = "animCount"}
       }
     },

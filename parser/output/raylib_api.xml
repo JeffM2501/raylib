@@ -677,7 +677,7 @@
             <Param type="unsigned int" name="frames" desc="" />
         </Callback>
     </Callbacks>
-    <Functions count="587">
+    <Functions count="588">
         <Function name="InitWindow" retType="void" paramCount="3" desc="Initialize window and OpenGL context">
             <Param type="int" name="width" desc="" />
             <Param type="int" name="height" desc="" />
@@ -2858,11 +2858,19 @@
             <Param type="int" name="frame" desc="" />
             <Param type="ModelBonePose*" name="outputPose" desc="" />
         </Function>
+        <Function name="InterpolateModelAnimationBonesPose" retType="void" paramCount="6" desc="Update a ModelBonePose with an interpolation between two animation frames">
+            <Param type="Model" name="model" desc="" />
+            <Param type="ModelAnimation" name="anim" desc="" />
+            <Param type="int" name="frame1" desc="" />
+            <Param type="int" name="frame2" desc="" />
+            <Param type="float" name="param" desc="" />
+            <Param type="ModelBonePose*" name="outputPose" desc="" />
+        </Function>
         <Function name="UnloadModelAnimation" retType="void" paramCount="1" desc="Unload animation data">
             <Param type="ModelAnimation" name="anim" desc="" />
         </Function>
         <Function name="UnloadModelAnimations" retType="void" paramCount="2" desc="Unload animation array data">
-            <Param type="ModelAnimation *" name="animations" desc="" />
+            <Param type="ModelAnimation*" name="animations" desc="" />
             <Param type="int" name="animCount" desc="" />
         </Function>
         <Function name="IsModelAnimationValid" retType="bool" paramCount="2" desc="Check model animation skeleton match">
