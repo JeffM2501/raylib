@@ -858,16 +858,6 @@ return {
           description = "Vertex bone weight, up to 4 bones influence by vertex (skinning) (shader-location = 7)"
         },
         {
-          type = "Matrix *",
-          name = "boneMatrices",
-          description = "Bones animated transformation matrices"
-        },
-        {
-          type = "int",
-          name = "boneCount",
-          description = "Number of bones"
-        },
-        {
           type = "unsigned int",
           name = "vaoId",
           description = "OpenGL Vertex Array Object id"
@@ -976,7 +966,7 @@ return {
     },
     {
       name = "Model",
-      description = "Model, meshes, materials and animation data",
+      description = "",
       fields = {
         {
           type = "Matrix",
@@ -1009,9 +999,9 @@ return {
           description = "Mesh material number"
         },
         {
-          type = "int",
-          name = "boneCount",
-          description = "Number of bones"
+          type = "ModelBonePose",
+          name = "currentBonePose",
+          description = "A cache of all the matrix transforms for the current bones pose"
         },
         {
           type = "BoneInfo *",
@@ -7284,6 +7274,20 @@ return {
       }
     },
     {
+      name = "DrawModelPro",
+      description = "Draw a model with extended parameters",
+      returnType = "void",
+      params = {
+        {type = "Model", name = "model"},
+        {type = "Vector3", name = "position"},
+        {type = "Vector3", name = "rotationAxis"},
+        {type = "float", name = "rotationAngle"},
+        {type = "Vector3", name = "scale"},
+        {type = "Color", name = "tint"},
+        {type = "ModelBonePose*", name = "pose"}
+      }
+    },
+    {
       name = "DrawModelWires",
       description = "Draw a model wires (with texture if set)",
       returnType = "void",
@@ -7645,6 +7649,15 @@ return {
       }
     },
     {
+      name = "UpdateModelVertsToPose",
+      description = "Update model animation pose (CPU)",
+      returnType = "void",
+      params = {
+        {type = "Model", name = "model"},
+        {type = "ModelBonePose*", name = "pose"}
+      }
+    },
+    {
       name = "UpdateModelAnimationBones",
       description = "Update model animation mesh bone matrices (GPU skinning)",
       returnType = "void",
@@ -7652,6 +7665,17 @@ return {
         {type = "Model", name = "model"},
         {type = "ModelAnimation", name = "anim"},
         {type = "int", name = "frame"}
+      }
+    },
+    {
+      name = "UpdateModelAnimationBonesPose",
+      description = "Update model animation mesh bone matrices (GPU skinning)",
+      returnType = "void",
+      params = {
+        {type = "Model", name = "model"},
+        {type = "ModelAnimation", name = "anim"},
+        {type = "int", name = "frame"},
+        {type = "ModelBonePose*", name = "outputPose"}
       }
     },
     {
@@ -7678,6 +7702,22 @@ return {
       params = {
         {type = "Model", name = "model"},
         {type = "ModelAnimation", name = "anim"}
+      }
+    },
+    {
+      name = "LoadModelBonePose",
+      description = "Creates a new model bone pose for use",
+      returnType = "ModelBonePose*",
+      params = {
+        {type = "Model", name = "model"}
+      }
+    },
+    {
+      name = "UnloadModelBonePose",
+      description = "unload model bone pose",
+      returnType = "void",
+      params = {
+        {type = "ModelBonePose*", name = "pose"}
       }
     },
     {
