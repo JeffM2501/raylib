@@ -102,7 +102,8 @@ int main(void)
 
 		anim = modelAnimations[animIndex2];
 		animCurrentFrame2 = (animCurrentFrame2 + 1) % anim.frameCount;
-		UpdateModelAnimationBonesPose(characterModel, anim, animCurrentFrame2, pose2);
+        float param = (sinf(GetTime()) + 1) / 2.0f;
+        InterpolateModelAnimationBonesPose(characterModel, anim, 0, anim.frameCount/2, param, pose2);
         //---------------------------------------------------------------------------------
 
         // Draw
@@ -121,6 +122,8 @@ int main(void)
             EndMode3D();
 
             DrawText("Use the T/G to switch animation", 10, 10, 20, GRAY);
+
+            DrawText(TextFormat("param %f", param), 20, 40, 20, RED);
 
         EndDrawing();
         //----------------------------------------------------------------------------------

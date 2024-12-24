@@ -1612,14 +1612,15 @@ RLAPI void SetMaterialTexture(Material *material, int mapType, Texture2D texture
 RLAPI void SetModelMeshMaterial(Model *model, int meshId, int materialId);                  // Set material for a mesh
 
 // Model animations loading/unloading functions
-RLAPI ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);                                    // Load model animations from file
-RLAPI void UpdateModelAnimation(Model model, ModelAnimation anim, int frame);                                       // Update model animation pose (CPU)
-RLAPI void UpdateModelVertsToPose(Model model, ModelBonePose* pose);                // Update model animation pose (CPU)
-RLAPI void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame);                                  // Update model animation mesh bone matrices (GPU skinning)
-RLAPI void UpdateModelAnimationBonesPose(Model model, ModelAnimation anim, int frame, ModelBonePose* outputPose);     // Update model animation mesh bone matrices (GPU skinning)
-RLAPI void UnloadModelAnimation(ModelAnimation anim);                                                               // Unload animation data
-RLAPI void UnloadModelAnimations(ModelAnimation *animations, int animCount);                                        // Unload animation array data
-RLAPI bool IsModelAnimationValid(Model model, ModelAnimation anim);                                                 // Check model animation skeleton match
+RLAPI ModelAnimation *LoadModelAnimations(const char *fileName, int *animCount);                                                                // Load model animations from file
+RLAPI void UpdateModelAnimation(Model model, ModelAnimation anim, int frame);                                                                   // Update model animation pose (CPU)
+RLAPI void UpdateModelVertsToPose(Model model, ModelBonePose* pose);                                                                            // Update model animation pose (CPU)
+RLAPI void UpdateModelAnimationBones(Model model, ModelAnimation anim, int frame);                                                              // Update model animation mesh bone matrices (GPU skinning)
+RLAPI void UpdateModelAnimationBonesPose(Model model, ModelAnimation anim, int frame, ModelBonePose* outputPose);                               // Update model animation mesh bone matrices (GPU skinning)
+RLAPI void InterpolateModelAnimationBonesPose(Model model, ModelAnimation anim, int frame1,int frame2, float param, ModelBonePose* outputPose); // Update a ModelBonePose with an interpolation between two animation frames
+RLAPI void UnloadModelAnimation(ModelAnimation anim);                                                                                           // Unload animation data
+RLAPI void UnloadModelAnimations(ModelAnimation* animations, int animCount);                                                                    // Unload animation array data
+RLAPI bool IsModelAnimationValid(Model model, ModelAnimation anim);                                                                             // Check model animation skeleton match
 
 RLAPI ModelBonePose* LoadModelBonePose(Model model);                                        // Creates a new model bone pose for use
 RLAPI void UnloadModelBonePose(ModelBonePose* pose);                                        // unload model bone pose

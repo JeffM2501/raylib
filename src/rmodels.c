@@ -2292,6 +2292,43 @@ void UpdateModelAnimationBonesPose(Model model, ModelAnimation anim, int frame, 
     }
 }
 
+void InterpolateModelAnimationBonesPose(Model model, ModelAnimation anim, int frame1, int frame2, float param, ModelBonePose* outputPose)
+{
+    if ((outputPose == NULL) || (anim.frameCount <= 0) || (anim.bones == NULL) || (anim.framePoses == NULL) || (outputPose->boneMatrices == NULL)) return;
+
+	if (frame1 >= anim.frameCount) frame1 = frame1 % anim.frameCount;
+    if (frame2 >= anim.frameCount) frame2 = frame2 % anim.frameCount;
+
+	// Update all bones and boneMatrices of first mesh with bones.
+	for (int boneId = 0; boneId < anim.boneCount; boneId++)
+	{
+		Vector3 inTranslation = model.bindPose[boneId].translation;
+		Quaternion inRotation = model.bindPose[boneId].rotation;
+		Vector3 inScale = model.bindPose[boneId].scale;
+
+		Vector3 outTranslation = Vector3Lerp(anim.framePoses[frame1][boneId].translation, anim.framePoses[frame2][boneId].translation, param);
+		Quaternion outRotation = QuaternionSlerp(anim.framePoses[frame1][boneId].rotation, anim.framePoses[frame2][boneId].rotation, param);
+		Vector3 outScale = Vector3Lerp(anim.framePoses[frame1][boneId].scale, anim.framePoses[frame2][boneId].scale, param);
+
+		Vector3 invTranslation = Vector3RotateByQuaternion(Vector3Negate(inTranslation), QuaternionInvert(inRotation));
+		Quaternion invRotation = QuaternionInvert(inRotation);
+		Vector3 invScale = Vector3Divide((Vector3) { 1.0f, 1.0f, 1.0f }, inScale);
+
+		Vector3 boneTranslation = Vector3Add(
+			Vector3RotateByQuaternion(Vector3Multiply(outScale, invTranslation),
+				outRotation), outTranslation);
+		Quaternion boneRotation = QuaternionMultiply(outRotation, invRotation);
+		Vector3 boneScale = Vector3Multiply(outScale, invScale);
+
+		Matrix boneMatrix = MatrixMultiply(MatrixMultiply(
+			QuaternionToMatrix(boneRotation),
+			MatrixTranslate(boneTranslation.x, boneTranslation.y, boneTranslation.z)),
+			MatrixScale(boneScale.x, boneScale.y, boneScale.z));
+
+		outputPose->boneMatrices[boneId] = boneMatrix;
+	}
+}
+
 void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
 {
     UpdateModelAnimationBones(model, anim, frame);
