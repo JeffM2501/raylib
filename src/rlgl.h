@@ -738,6 +738,10 @@ RLAPI void rlSetTexture(unsigned int id);               // Set current texture f
 RLAPI unsigned int rlLoadVertexArray(void);             // Load vertex array (vao) if supported
 RLAPI unsigned int rlLoadVertexBuffer(const void *buffer, int size, bool dynamic); // Load a vertex buffer object
 RLAPI unsigned int rlLoadVertexBufferElement(const void *buffer, int size, bool dynamic); // Load vertex buffer elements object
+RLAPI void *rlLoadVertexBufferMapped(unsigned int *vboIdOut, int size, bool dynamic); // Load a persistent mapped vertex buffer object, returns mapped pointer
+RLAPI void *rlLoadVertexBufferElementMapped(unsigned int *vboIdOut, int size, bool dynamic); // Load persistent mapped vertex buffer element object, returns mapped pointer
+RLAPI void rlUnmapVertexBuffer(unsigned int vboId, int size);  // Unmap vertex buffer and flush changes
+RLAPI void rlUnmapVertexBufferElement(unsigned int vboId, int size);  // Unmap vertex buffer element and flush changes
 RLAPI void rlUpdateVertexBuffer(unsigned int bufferId, const void *data, int dataSize, int offset); // Update vertex buffer object data on GPU buffer
 RLAPI void rlUpdateVertexBufferElements(unsigned int id, const void *data, int dataSize, int offset); // Update vertex buffer elements data on GPU buffer
 RLAPI void rlUnloadVertexArray(unsigned int vaoId);     // Unload vertex array (vao)
@@ -3992,6 +3996,78 @@ unsigned int rlLoadVertexBufferElement(const void *buffer, int size, bool dynami
 #endif
 
     return id;
+}
+
+// Load a persistent mapped vertex buffer (for thread-safe operations)
+// NOTE: The returned pointer must be used to write vertex data, then rlUnmapVertexBuffer must be called
+void *rlLoadVertexBufferMapped(unsigned int *vboIdOut, int size, bool dynamic)
+{
+    void *mappedPtr = NULL;
+    unsigned int id = 0;
+    if (!isGpuReady) { TRACELOG(RL_LOG_WARNING, "GL: GPU is not ready to load data, trying to load before InitWindow()?"); return mappedPtr; }
+
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glGenBuffers(1, &id);
+    glBindBuffer(GL_ARRAY_BUFFER, id);
+
+    // Use GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT for thread-safe operations on child contexts
+    // Allocate storage without initial data
+    glBufferStorage(GL_ARRAY_BUFFER, size, NULL, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+
+    // Map the buffer persistently
+    mappedPtr = glMapBufferRange(GL_ARRAY_BUFFER, 0, size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+
+   // glBindBuffer(GL_ARRAY_BUFFER, 0);
+#endif
+
+    if (vboIdOut) *vboIdOut = id;
+    return mappedPtr;
+}
+
+// Load a persistent mapped vertex buffer element (for thread-safe operations)
+// NOTE: The returned pointer must be used to write element data, then rlUnmapVertexBufferElement must be called
+void *rlLoadVertexBufferElementMapped(unsigned int *vboIdOut, int size, bool dynamic)
+{
+    void *mappedPtr = NULL;
+    unsigned int id = 0;
+    if (!isGpuReady) { TRACELOG(RL_LOG_WARNING, "GL: GPU is not ready to load data, trying to load before InitWindow()?"); return mappedPtr; }
+
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glGenBuffers(1, &id);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
+
+    // Use GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT for thread-safe operations on child contexts
+    // Allocate storage without initial data
+    glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, size, NULL, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+
+    // Map the buffer persistently
+    mappedPtr = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#endif
+
+    if (vboIdOut) *vboIdOut = id;
+    return mappedPtr;
+}
+
+// Unmap vertex buffer
+void rlUnmapVertexBuffer(unsigned int vboId, int size)
+{
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glBindBuffer(GL_ARRAY_BUFFER, vboId);
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+   // glBindBuffer(GL_ARRAY_BUFFER, 0);
+#endif
+}
+
+// Unmap vertex buffer element
+void rlUnmapVertexBufferElement(unsigned int vboId, int size)
+{
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboId);
+    glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+   // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#endif
 }
 
 // Enable vertex buffer (VBO)

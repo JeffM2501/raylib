@@ -1266,6 +1266,9 @@ BoundingBox GetModelBoundingBox(Model model)
 // Upload vertex data into a VAO (if supported) and VBO
 void UploadMesh(Mesh *mesh, bool dynamic)
 {
+  UploadMeshMapped(mesh, dynamic);
+  return;
+
     if (mesh->vaoId > 0)
     {
         // Check if mesh has already been loaded in GPU
@@ -1420,6 +1423,185 @@ void UploadMesh(Mesh *mesh, bool dynamic)
     if (mesh->indices != NULL)
     {
         mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_INDICES] = rlLoadVertexBufferElement(mesh->indices, mesh->triangleCount*3*sizeof(unsigned short), dynamic);
+    }
+
+    if (mesh->vaoId > 0) TRACELOG(LOG_INFO, "VAO: [ID %i] Mesh uploaded successfully to VRAM (GPU)", mesh->vaoId);
+    else TRACELOG(LOG_INFO, "VBO: Mesh uploaded successfully to VRAM (GPU)");
+
+    rlDisableVertexArray();
+#endif
+}
+
+// Upload mesh vertex data using persistent mapped buffers (thread-safe for child GL contexts)
+void UploadMeshMapped(Mesh *mesh, bool dynamic)
+{
+    if (mesh->vaoId > 0)
+    {
+        // Check if mesh has already been loaded in GPU
+        TRACELOG(LOG_WARNING, "VAO: [ID %i] Trying to re-load an already loaded mesh", mesh->vaoId);
+        return;
+    }
+
+    mesh->vboId = (unsigned int *)RL_CALLOC(MAX_MESH_VERTEX_BUFFERS, sizeof(unsigned int));
+
+    mesh->vaoId = 0;        // Vertex Array Object
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION] = 0;     // Vertex buffer: positions
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD] = 0;     // Vertex buffer: texcoords
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL] = 0;       // Vertex buffer: normals
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR] = 0;        // Vertex buffer: colors
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT] = 0;      // Vertex buffer: tangents
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2] = 0;    // Vertex buffer: texcoords2
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_INDICES] = 0;      // Vertex buffer: indices
+#if SUPPORT_GPU_SKINNING
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES] = 0;  // Vertex buffer: boneIndices
+    mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS] = 0;  // Vertex buffer: boneWeights
+#endif
+
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    mesh->vaoId = rlLoadVertexArray();
+
+    rlEnableVertexArray(mesh->vaoId);
+
+    // NOTE: Vertex attributes must be uploaded considering default locations points and available vertex data
+
+    // Enable vertex attributes: position (shader-location = 0)
+    void *vertices = (mesh->animVertices != NULL)? mesh->animVertices : mesh->vertices;
+    int vertexSize = mesh->vertexCount * 3 * sizeof(float);
+    void *posPtr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION], vertexSize, dynamic);
+    if (posPtr) memcpy(posPtr, vertices, vertexSize);
+    rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION], vertexSize);
+    rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 3, RL_FLOAT, 0, 0, 0);
+    rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
+
+    // Enable vertex attributes: texcoords (shader-location = 1)
+
+    if (mesh->texcoords != NULL)
+    {
+        int texcoordSize = mesh->vertexCount * 2 * sizeof(float);
+        void *texPtr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD], texcoordSize, dynamic);
+        if (texPtr) memcpy(texPtr, mesh->texcoords, texcoordSize);
+        rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD], texcoordSize);
+        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD, 2, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD);
+    }
+    else
+    {
+        float value[2] = { 0.0f, 0.0f };
+        rlSetVertexAttributeDefault(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD, value, SHADER_ATTRIB_VEC2, 2);
+        rlDisableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD);
+    }
+
+    if (mesh->normals != NULL)
+    {
+        // Enable vertex attributes: normals (shader-location = 2)
+        void *normals = (mesh->animNormals != NULL)? mesh->animNormals : mesh->normals;
+        int normalSize = mesh->vertexCount * 3 * sizeof(float);
+        void *normPtr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL], normalSize, dynamic);
+        if (normPtr) memcpy(normPtr, normals, normalSize);
+        rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL], normalSize);
+        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL, 3, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL);
+    }
+    else
+    {
+        float value[3] = { 0.0f, 0.0f, 1.0f };
+        rlSetVertexAttributeDefault(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL, value, SHADER_ATTRIB_VEC3, 3);
+        rlDisableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_NORMAL);
+    }
+
+    if (mesh->colors != NULL)
+    {
+        // Enable vertex attribute: color (shader-location = 3)
+        int colorSize = mesh->vertexCount * 4 * sizeof(unsigned char);
+        void *colPtr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR], colorSize, dynamic);
+        if (colPtr) memcpy(colPtr, mesh->colors, colorSize);
+        rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR], colorSize);
+        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR, 4, RL_UNSIGNED_BYTE, 1, 0, 0);
+        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR);
+    }
+    else
+    {
+        float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        rlSetVertexAttributeDefault(RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR, value, SHADER_ATTRIB_VEC4, 4);
+        rlDisableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR);
+    }
+
+    if (mesh->tangents != NULL)
+    {
+        // Enable vertex attribute: tangent (shader-location = 4)
+        int tangentSize = mesh->vertexCount * 4 * sizeof(float);
+        void *tanPtr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT], tangentSize, dynamic);
+        if (tanPtr) memcpy(tanPtr, mesh->tangents, tangentSize);
+        rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT], tangentSize);
+        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT, 4, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT);
+    }
+    else
+    {
+        float value[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
+        rlSetVertexAttributeDefault(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT, value, SHADER_ATTRIB_VEC4, 4);
+        rlDisableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TANGENT);
+    }
+
+    if (mesh->texcoords2 != NULL)
+    {
+        // Enable vertex attribute: texcoord2 (shader-location = 5)
+        int texcoord2Size = mesh->vertexCount * 2 * sizeof(float);
+        void *tex2Ptr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2], texcoord2Size, dynamic);
+        if (tex2Ptr) memcpy(tex2Ptr, mesh->texcoords2, texcoord2Size);
+        rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2], texcoord2Size);
+        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2, 2, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2);
+    }
+    else
+    {
+        float value[2] = { 0.0f, 0.0f };
+        rlSetVertexAttributeDefault(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2, value, SHADER_ATTRIB_VEC2, 2);
+        rlDisableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD2);
+    }
+
+#if SUPPORT_GPU_SKINNING
+    if (mesh->boneIndices != NULL)
+    {
+        // Enable vertex attribute: boneIndices (shader-location = 7)
+        int boneIndicesSize = mesh->vertexCount * 4 * sizeof(unsigned char);
+        void *boneIdPtr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES], boneIndicesSize, dynamic);
+        if (boneIdPtr) memcpy(boneIdPtr, mesh->boneIndices, boneIndicesSize);
+        rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES], boneIndicesSize);
+        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES, 4, RL_UNSIGNED_BYTE, 0, 0, 0);
+        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES);
+    }
+    else
+    {
+        float value[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        rlSetVertexAttributeDefault(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES, value, SHADER_ATTRIB_VEC4, 4);
+        rlDisableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEINDICES);
+    }
+
+    if (mesh->boneWeights != NULL)
+    {
+        // Enable vertex attribute: boneWeights (shader-location = 8)
+        int boneWeightsSize = mesh->vertexCount * 4 * sizeof(float);
+        void *boneWtPtr = rlLoadVertexBufferMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS], boneWeightsSize, dynamic);
+        if (boneWtPtr) memcpy(boneWtPtr, mesh->boneWeights, boneWeightsSize);
+        rlUnmapVertexBuffer(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS], boneWeightsSize);
+        rlSetVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS, 4, RL_FLOAT, 0, 0, 0);
+        rlEnableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS);
+    }
+    else
+    {
+        float value[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        rlSetVertexAttributeDefault(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS, value, SHADER_ATTRIB_VEC4, 2);
+        rlDisableVertexAttribute(RL_DEFAULT_SHADER_ATTRIB_LOCATION_BONEWEIGHTS);
+    }
+#endif
+
+    if (mesh->indices != NULL)
+    {
+        int indicesSize = mesh->triangleCount * 3 * sizeof(unsigned short);
+        void *indPtr = rlLoadVertexBufferElementMapped(&mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_INDICES], indicesSize, dynamic);
+        if (indPtr) memcpy(indPtr, mesh->indices, indicesSize);
+        rlUnmapVertexBufferElement(mesh->vboId[RL_DEFAULT_SHADER_ATTRIB_LOCATION_INDICES], indicesSize);
     }
 
     if (mesh->vaoId > 0) TRACELOG(LOG_INFO, "VAO: [ID %i] Mesh uploaded successfully to VRAM (GPU)", mesh->vaoId);

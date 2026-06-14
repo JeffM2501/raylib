@@ -1615,6 +1615,7 @@ RLAPI void DrawBillboardPro(Camera camera, Texture2D texture, Rectangle rec, Vec
 
 // Mesh management functions
 RLAPI void UploadMesh(Mesh *mesh, bool dynamic);                                            // Upload mesh vertex data in GPU and provide VAO/VBO ids
+RLAPI void UploadMeshMapped(Mesh *mesh, bool dynamic);                                      // Upload mesh vertex data in GPU using persistent mapped buffers (thread-safe for child GL contexts)
 RLAPI void UpdateMeshBuffer(Mesh mesh, int index, const void *data, int dataSize, int offset); // Update mesh vertex data in GPU for a specific buffer index
 RLAPI void UnloadMesh(Mesh mesh);                                                           // Unload mesh data from CPU and GPU
 RLAPI void DrawMesh(Mesh mesh, Material material, Matrix transform);                        // Draw a 3d mesh with material and transform
