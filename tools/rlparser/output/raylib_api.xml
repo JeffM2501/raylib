@@ -681,7 +681,7 @@
             <Param type="unsigned int" name="frames" desc="" />
         </Callback>
     </Callbacks>
-    <Functions count="607">
+    <Functions count="608">
         <Function name="InitWindow" retType="void" paramCount="3" desc="Initialize window and OpenGL context">
             <Param type="int" name="width" desc="" />
             <Param type="int" name="height" desc="" />
@@ -2851,6 +2851,10 @@
             <Param type="Color" name="tint" desc="" />
         </Function>
         <Function name="UploadMesh" retType="void" paramCount="2" desc="Upload mesh vertex data in GPU and provide VAO/VBO ids">
+            <Param type="Mesh *" name="mesh" desc="" />
+            <Param type="bool" name="dynamic" desc="" />
+        </Function>
+        <Function name="UploadMeshMapped" retType="void" paramCount="2" desc="Upload mesh vertex data in GPU using persistent mapped buffers (thread-safe for child GL contexts)">
             <Param type="Mesh *" name="mesh" desc="" />
             <Param type="bool" name="dynamic" desc="" />
         </Function>

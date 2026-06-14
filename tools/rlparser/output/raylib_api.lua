@@ -7663,6 +7663,15 @@ return {
       }
     },
     {
+      name = "UploadMeshMapped",
+      description = "Upload mesh vertex data in GPU using persistent mapped buffers (thread-safe for child GL contexts)",
+      returnType = "void",
+      params = {
+        {type = "Mesh *", name = "mesh"},
+        {type = "bool", name = "dynamic"}
+      }
+    },
+    {
       name = "UpdateMeshBuffer",
       description = "Update mesh vertex data in GPU for a specific buffer index",
       returnType = "void",
