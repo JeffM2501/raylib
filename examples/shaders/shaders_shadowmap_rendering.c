@@ -110,7 +110,7 @@ int main(void)
         // Update
         //----------------------------------------------------------------------------------
         float deltaTime = GetFrameTime();
-		
+
         UpdateCamera(&camera, CAMERA_ORBITAL);
         Vector3 cameraPos = camera.position;
         SetShaderValue(shadowShader, shadowShader.locs[SHADER_LOC_VECTOR_VIEW], &cameraPos, SHADER_UNIFORM_VEC3);
